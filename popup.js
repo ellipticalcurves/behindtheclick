@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputImageUrl = document.getElementById('imageUrl');
   const inputImageTitle = document.getElementById('imageTitle');
   const imagePreview = document.getElementById('imagePreview'); // Add this line
-
+  const replaceAllImages = document.getElementById('replaceAll');
   // Load saved states
   chrome.storage.local.get(['enabled', 'showThumbnails'], (result) => {
     toggle.checked = result.enabled || false;
@@ -44,4 +44,6 @@ document.addEventListener('DOMContentLoaded', () => {
     imagePreview.src = imageUrl;
     imagePreview.style.display = imageUrl ? 'block' : 'none'; // Show the preview only if the URL is not empty
   });
+
+
 }); 
