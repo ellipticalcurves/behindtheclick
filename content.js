@@ -63,6 +63,59 @@ function clearOverlays() {
     });
 }
 
+function replaceAllImages(imageUrl, imageTitle) {
+    if (!imageUrl) return;
+
+    const thumbnails = document.querySelectorAll(`img[src*="ytimg.com/vi/"], img[src*="i.ytimg.com"]`);
+
+    thumbnails.forEach(thumbnail => {
+        const container = thumbnail.closest('ytd-thumbnail, ytd-reel-item-renderer');
+        if (!container) return;
+
+        if(!container.classList.contains('image-replaced')) {
+            container.classList.add('image-replaced');
+            container.style.position = 'relative';
+
+            const newImage = document.createElement('img');
+            newImage.className = 'custom-thumbnail';
+            newImage.src = imageUrl;
+            newImage.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                z-index: 2;
+            `;
+            thumbnail.style.visibility = 'hidden';
+
+            container.appendChild(newImage);
+        }
+    });
+}
+
+
+function clearAllReplaces(){
+    const replacedContainers = document.querySelectorAll('.image-replaced');
+    replacedContainers.forEach(container => {
+        // Find and remove the custom thumbnail
+        const customThumbnail = container.querySelector('.custom-thumbnail');
+        if (customThumbnail) {
+            customThumbnail.remove();
+        }
+
+        // Restore the original thumbnail visibility
+        const originalThumbnail = container.querySelector(`img[src*="ytimg.com/vi/"], img[src*="i.ytimg.com"]`);
+        if (originalThumbnail) {
+            originalThumbnail.style.visibility = 'visible';
+        }
+
+        // Remove the class so it can be replaced again later if needed
+        container.classList.remove('image-replaced');
+    });
+}
+
 function replaceThumbnails() {
     if (!isEnabled) return;
 
@@ -154,6 +207,9 @@ function debounce(func, wait) {
 // Debounced version of replaceThumbnails
 const debouncedReplace = debounce(replaceThumbnails, 250);
 
+const debouncedReplaceAll = debounce(replaceAllImages, 250);
+
+
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((message) => {
     const wasEnabled = isEnabled;
@@ -170,6 +226,9 @@ chrome.runtime.onMessage.addListener((message) => {
         } else {
             // Only run animation when enabling the extension
             setGreyscale(true);
+            replaceAllImages('https://i.ytimg.com/vi/Mu3BfD6wmPg/hq720.jpg?sqp=-oaymwFBCNAFEJQDSFryq4qpAzMIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB8AEB-AH-CYAC0AWKAgwIABABGBEgYihyMA8=&rs=AOn4CLCY6KSCtCHAKGgbGjInahMAocVO8g', 'Test Title');
+
+            replaceThumbnails();
         }
     } 
     // If only the thumbnail setting changed, just update without animation
@@ -179,14 +238,41 @@ chrome.runtime.onMessage.addListener((message) => {
     }
 });
 
+
+chrome.runtime.onMessage.addListener((message) => {
+    const wasReplace = replace;
+    replace = message.replace
+
+
+//     const wasReplace = replace;
+//     replace = message.replace
+//     if (wasReplace !== replace) {
+//         if (!replace) {
+//             //clearAllReplaces();
+    
+//         } else {
+//             replaceAllImages(message.imageUrl, message.imageTitle);
+//         }
+//     }
+
+// });
+
+
+
 // Load initial state
-chrome.storage.local.get(['enabled', 'showThumbnails'], (result) => {
+chrome.storage.local.get(['enabled', 'showThumbnails','imageUrl','imageTitle', 'replace'], (result) => {
     isEnabled = result.enabled || false;
     showThumbnails = result.showThumbnails || false;
     if (isEnabled) {
         setGreyscale(true);
     }
+
+    result.imageUrl || '';
+    result.imageTitle || '';
 });
+
+
+
 
 // Add scroll event listener
 window.addEventListener('scroll', debouncedReplace);

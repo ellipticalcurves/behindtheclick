@@ -4,11 +4,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputImageUrl = document.getElementById('imageUrl');
   const inputImageTitle = document.getElementById('imageTitle');
   const imagePreview = document.getElementById('imagePreview'); // Add this line
-  const replaceAllImages = document.getElementById('replaceAll');
+  const replaceAllCheckbox = document.getElementById('replaceAll'); // Checkbox
   // Load saved states
-  chrome.storage.local.get(['enabled', 'showThumbnails'], (result) => {
+  chrome.storage.local.get(['enabled', 'showThumbnails','imageUrl','imageTitle','replace'], (result) => {
     toggle.checked = result.enabled || false;
     thumbnailToggle.checked = result.showThumbnails || false;
+    inputImageUrl.value = result.imageUrl || '';
+    inputImageTitle.value = result.imageTitle || '';
+    inputReplaceAll.checked = result.replace || false;
   });
   
   // Save state and send message to content script when main toggle changed
@@ -40,10 +43,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   inputImageUrl.addEventListener('input', () => {
     const imageUrl = inputImageUrl.value
-    //chrome.storage.local.set({ imageUrl });
+    chrome.storage.local.set({ imageUrl });
     imagePreview.src = imageUrl;
     imagePreview.style.display = imageUrl ? 'block' : 'none'; // Show the preview only if the URL is not empty
   });
 
+  replaceAllCheckbox.addEventListener('change', () => {
+    const replaceEnabled = replaceAllCheckbox.checked;
+    const imageUrl = inputImageUrl.value;
+    const imageTitle = inputImageTitle.value;
+
+    chrome.storage.local.set({ replace: replaceEnabled });
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.tabs.sendMessage(tabs[0].id, {
+            replace: replaceEnabled,
+            imageUrl,
+            imageTitle
+          });
+        });
+      });
 
 }); 
