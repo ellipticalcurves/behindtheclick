@@ -221,4 +221,4 @@ if (contentContainer) {
     });
 } 
 
-console.log("I exist!");
+console.log("I exist!")

@@ -1,7 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
   const toggle = document.getElementById('toggleExtension');
   const thumbnailToggle = document.getElementById('showThumbnails');
-  
+  const inputImageUrl = document.getElementById('imageUrl');
+  const inputImageTitle = document.getElementById('imageTitle');
+  const imagePreview = document.getElementById('imagePreview'); // Add this line
+
   // Load saved states
   chrome.storage.local.get(['enabled', 'showThumbnails'], (result) => {
     toggle.checked = result.enabled || false;
@@ -32,5 +35,13 @@ document.addEventListener('DOMContentLoaded', () => {
         showThumbnails 
       });
     });
+  });
+
+
+  inputImageUrl.addEventListener('input', () => {
+    const imageUrl = inputImageUrl.value
+    //chrome.storage.local.set({ imageUrl });
+    imagePreview.src = imageUrl;
+    imagePreview.style.display = imageUrl ? 'block' : 'none'; // Show the preview only if the URL is not empty
   });
 }); 
