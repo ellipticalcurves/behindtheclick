@@ -220,3 +220,5 @@ if (contentContainer) {
         subtree: true
     });
 } 
+
+console.log("I exist!");
