@@ -72,10 +72,15 @@ function replaceAllImages(imageUrl, imageTitle) {
 
     const thumbnails = document.querySelectorAll(`img[src*="ytimg.com/vi/"], img[src*="i.ytimg.com"]`);
 
+
     thumbnails.forEach(thumbnail => {
         const container = thumbnail.closest('ytd-thumbnail, ytd-reel-item-renderer');
         if (!container) return;
-
+        const titleElement = container.closest('ytd-rich-item-renderer')?.querySelector('#video-title');
+        const rawTitle = titleElement?.textContent?.trim() || 'Untitled';
+        console.log(rawTitle);
+        //const cacheKey = 
+        
         if(!container.classList.contains('image-replaced')) {
             container.classList.add('image-replaced');
             container.style.position = 'relative';
@@ -194,6 +199,51 @@ function replaceThumbnails() {
         }
     });
 }
+
+async function analyzeWithGroq(text) {
+    if (!apiKey) {
+        return "GROQ API key not provided";
+        //throw new Error('GROQ API key not provided');
+    }
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: 'mixtral-8x7b-32768',
+            messages: [{
+                role: "user",
+                content: `Analyze this YouTube video title from an ideological perspective: "${text}"
+                    Provide your response in this exact JSON format:
+                    {
+                        "summary": "SHORT UNIQUE CRITIQUE IN CAPS (1-3 words)",
+                        "analysis": "2-3 sentence critical analysis of ideological messaging",
+                        "impact": "One sentence about potential societal impact"
+                    }
+                    Make the summary a powerful and UNIQUE short phrase that critiques the underlying ideology.
+                    Never repeat the same summary twice. Examples: "CONSUME NOW", "STAY ASLEEP", "OBEY AUTHORITY", "CONFORM OR DIE".
+                    Keep it under 3 words and impactful. Must be in caps. Must be unique. OUTPUT AS ONLY JSON.`
+            }],
+            temperature: 0.9,
+            top_p: 0.95,
+            max_tokens: 250
+        })
+    });
+
+    const responseData = await response.json();
+    const result = responseData.choices[0]?.message?.content;
+    console.log(result);
+    return result;
+}
+
+
+
+console.log(apiKey);
+console.log(analyzeWithGroq("The Matrix - Official Trailer"));
+
+
 
 // Debounce function to prevent too many calls
 function debounce(func, wait) {
