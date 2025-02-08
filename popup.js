@@ -5,14 +5,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputImageTitle = document.getElementById('imageTitle');
   const imagePreview = document.getElementById('imagePreview'); // Add this line
   const replaceAllCheckbox = document.getElementById('replaceAll'); // Checkbox
-
+  const apiKeyInput = document.getElementById('apiKey'); // API key input
   // Load saved states
-  chrome.storage.local.get(['enabled', 'showThumbnails', 'imageUrl', 'imageTitle', 'replace'], (result) => {
+  chrome.storage.local.get(['enabled', 'showThumbnails', 'imageUrl', 'imageTitle', 'replace', 'apiKey'], (result) => {
     toggle.checked = result.enabled || false;
     thumbnailToggle.checked = result.showThumbnails || false;
     inputImageUrl.value = result.imageUrl || '';
     inputImageTitle.value = result.imageTitle || '';
     replaceAllCheckbox.checked = result.replace || false;
+    apiKeyInput.value = result.apiKey || ''; // Load the API key
   });
   
   // Save state and send message to content script when main toggle changed
@@ -80,4 +81,12 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   });
+  
+  apiKeyInput.addEventListener('input', () => {
+    const apiKey = apiKeyInput.value;
+    chrome.storage.local.set({ apiKey });
+  });
+
+
+
 });

@@ -81,7 +81,14 @@
     <input type="checkbox" id="replaceAll">
     <span>Replace all thumbnails and/or titles </span>
   </div>
-
+  
+  <div class="api-section">
+    <select id="apiProvider" class="api-select">
+      <option value="groq">GROQ</option>
+    </select>
+    <input type="password" id="apiKey" class="api-input" placeholder="Enter your API key">
+    <div id="errorMessage" class="error-message"></div>
+  </div>
 
 
   <script src="popup.js"></script>

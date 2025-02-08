@@ -3,7 +3,7 @@ let showThumbnails = false;
 let replace = false;
 let imageUrl = 'https://i.ytimg.com/vi/DdV8dqw6ZzE/hqdefault.jpg?sqp=-oaymwFBCNACELwBSFryq4qpAzMIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB8AEB-AH-CYAC0AWKAgwIABABGEggZSg8MA8=&rs=AOn4CLB2xortox5sf8KPfQF3tZdoaMpNzQ';
 let imageTitle = '';
-
+let apiKey = '';
 
 const words = ['OBEY', 'CONSUME', 'CONFORM', 'SUBMIT', 'SLEEP'];
 
