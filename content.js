@@ -1,5 +1,9 @@
 let isEnabled = false;
 let showThumbnails = false;
+let replace = false;
+let imageUrl = 'https://i.ytimg.com/vi/DdV8dqw6ZzE/hqdefault.jpg?sqp=-oaymwFBCNACELwBSFryq4qpAzMIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB8AEB-AH-CYAC0AWKAgwIABABGEggZSg8MA8=&rs=AOn4CLB2xortox5sf8KPfQF3tZdoaMpNzQ';
+let imageTitle = '';
+
 
 const words = ['OBEY', 'CONSUME', 'CONFORM', 'SUBMIT', 'SLEEP'];
 
@@ -207,7 +211,11 @@ function debounce(func, wait) {
 // Debounced version of replaceThumbnails
 const debouncedReplace = debounce(replaceThumbnails, 250);
 
-const debouncedReplaceAll = debounce(replaceAllImages, 250);
+const debouncedReplaceAll = debounce(() => replaceAllImages('https://i.ytimg.com/vi/Mu3BfD6wmPg/hq720.jpg?sqp=-oaymwFBCNAFEJQDSFryq4qpAzMIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB8AEB-AH-CYAC0AWKAgwIABABGBEgYihyMA8=&rs=AOn4CLCY6KSCtCHAKGgbGjInahMAocVO8g', 'Test Title'), 250);
+
+
+
+
 
 
 // Listen for messages from popup
@@ -223,6 +231,7 @@ chrome.runtime.onMessage.addListener((message) => {
             // If extension is being disabled, restore YouTube to normal
             document.documentElement.style.filter = 'none';
             clearOverlays();
+            clearAllReplaces();
         } else {
             // Only run animation when enabling the extension
             setGreyscale(true);
@@ -239,11 +248,7 @@ chrome.runtime.onMessage.addListener((message) => {
 });
 
 
-chrome.runtime.onMessage.addListener((message) => {
-    const wasReplace = replace;
-    replace = message.replace
-
-
+// chrome.runtime.onMessage.addListener((message) => {
 //     const wasReplace = replace;
 //     replace = message.replace
 //     if (wasReplace !== replace) {
@@ -275,7 +280,13 @@ chrome.storage.local.get(['enabled', 'showThumbnails','imageUrl','imageTitle', '
 
 
 // Add scroll event listener
-window.addEventListener('scroll', debouncedReplace);
+window.addEventListener('scroll',() => {
+    if(replace){
+        debouncedReplaceAll();
+    }
+    debouncedReplace();
+});
+
 
 // Create an observer to handle dynamically loaded thumbnails
 const observer = new MutationObserver((mutations) => {

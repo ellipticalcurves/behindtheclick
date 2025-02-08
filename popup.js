@@ -5,63 +5,81 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputImageTitle = document.getElementById('imageTitle');
   const imagePreview = document.getElementById('imagePreview'); // Add this line
   const replaceAllCheckbox = document.getElementById('replaceAll'); // Checkbox
+
   // Load saved states
-  chrome.storage.local.get(['enabled', 'showThumbnails','imageUrl','imageTitle','replace'], (result) => {
+  chrome.storage.local.get(['enabled', 'showThumbnails', 'imageUrl', 'imageTitle', 'replace'], (result) => {
     toggle.checked = result.enabled || false;
     thumbnailToggle.checked = result.showThumbnails || false;
     inputImageUrl.value = result.imageUrl || '';
     inputImageTitle.value = result.imageTitle || '';
-    inputReplaceAll.checked = result.replace || false;
+    replaceAllCheckbox.checked = result.replace || false;
+
+    // Display image preview if imageUrl is not empty
+    if (inputImageUrl.value) {
+      imagePreview.src = inputImageUrl.value;
+      imagePreview.style.display = 'block';
+    }
   });
   
   // Save state and send message to content script when main toggle changed
   toggle.addEventListener('change', () => {
     const enabled = toggle.checked;
     const showThumbnails = thumbnailToggle.checked;
-    chrome.storage.local.set({ enabled, showThumbnails });
+    const replace = replaceAllCheckbox.checked;
+    const imageUrl = inputImageUrl.value;
+    const imageTitle = inputImageTitle.value;
+    
+    chrome.storage.local.set({ enabled, showThumbnails, replace, imageUrl, imageTitle });
     
     // Send message to active tab
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(tabs[0].id, { enabled, showThumbnails });
+      chrome.tabs.sendMessage(tabs[0].id, { enabled, showThumbnails, replace, imageUrl, imageTitle });
     });
   });
 
   // Handle thumbnail toggle
   thumbnailToggle.addEventListener('change', () => {
     const showThumbnails = thumbnailToggle.checked;
-    chrome.storage.local.set({ showThumbnails });
+    const replace = replaceAllCheckbox.checked;
+    const imageUrl = inputImageUrl.value;
+    const imageTitle = inputImageTitle.value;
+    
+    chrome.storage.local.set({ showThumbnails, replace, imageUrl, imageTitle });
     
     // Send message to active tab
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       chrome.tabs.sendMessage(tabs[0].id, { 
         enabled: toggle.checked, 
-        showThumbnails 
+        showThumbnails,
+        replace,
+        imageUrl,
+        imageTitle
       });
     });
   });
 
-
+  // Handle image URL input
   inputImageUrl.addEventListener('input', () => {
-    const imageUrl = inputImageUrl.value
+    const imageUrl = inputImageUrl.value;
     chrome.storage.local.set({ imageUrl });
     imagePreview.src = imageUrl;
     imagePreview.style.display = imageUrl ? 'block' : 'none'; // Show the preview only if the URL is not empty
   });
 
+  // Handle replace all checkbox
   replaceAllCheckbox.addEventListener('change', () => {
-    const replaceEnabled = replaceAllCheckbox.checked;
+    const replace = replaceAllCheckbox.checked;
     const imageUrl = inputImageUrl.value;
     const imageTitle = inputImageTitle.value;
+    chrome.storage.local.set({ replace });
 
-    chrome.storage.local.set({ replace: replaceEnabled });
-
+    // Send message to active tab
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        chrome.tabs.sendMessage(tabs[0].id, {
-            replace: replaceEnabled,
-            imageUrl,
-            imageTitle
-          });
-        });
+      chrome.tabs.sendMessage(tabs[0].id, {
+        replace,
+        imageUrl,
+        imageTitle
       });
-
-}); 
+    });
+  });
+});
