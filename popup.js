@@ -13,12 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
     inputImageUrl.value = result.imageUrl || '';
     inputImageTitle.value = result.imageTitle || '';
     replaceAllCheckbox.checked = result.replace || false;
-
-    // Display image preview if imageUrl is not empty
-    if (inputImageUrl.value) {
-      imagePreview.src = inputImageUrl.value;
-      imagePreview.style.display = 'block';
-    }
   });
   
   // Save state and send message to content script when main toggle changed
@@ -68,6 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Handle replace all checkbox
   replaceAllCheckbox.addEventListener('change', () => {
+    const enabled = toggle.checked;
+    const showThumbnails = thumbnailToggle.checked;
     const replace = replaceAllCheckbox.checked;
     const imageUrl = inputImageUrl.value;
     const imageTitle = inputImageTitle.value;
@@ -76,6 +72,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Send message to active tab
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       chrome.tabs.sendMessage(tabs[0].id, {
+        enabled,
+        showThumbnails,
         replace,
         imageUrl,
         imageTitle

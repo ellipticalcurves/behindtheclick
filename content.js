@@ -211,7 +211,7 @@ function debounce(func, wait) {
 // Debounced version of replaceThumbnails
 const debouncedReplace = debounce(replaceThumbnails, 250);
 
-const debouncedReplaceAll = debounce(() => replaceAllImages('https://i.ytimg.com/vi/Mu3BfD6wmPg/hq720.jpg?sqp=-oaymwFBCNAFEJQDSFryq4qpAzMIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB8AEB-AH-CYAC0AWKAgwIABABGBEgYihyMA8=&rs=AOn4CLCY6KSCtCHAKGgbGjInahMAocVO8g', 'Test Title'), 250);
+const debouncedReplaceAll = debounce(() => replaceAllImages(imageUrl, imageTitle), 250);
 
 
 
@@ -219,11 +219,23 @@ const debouncedReplaceAll = debounce(() => replaceAllImages('https://i.ytimg.com
 
 
 // Listen for messages from popup
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message) => {    
     const wasEnabled = isEnabled;
     const wasShowingThumbnails = showThumbnails;
+    const wasReplace = replace;
+    //console.log(replace);
+    //console.log(message.replace);
     isEnabled = message.enabled;
     showThumbnails = message.showThumbnails;
+    replace = message.replace;
+    //first I make the thumbnails replaced if the replace button changed
+    if (wasReplace !== replace) {
+        if (!replace) {
+            clearAllReplaces();
+        } else {
+            replaceAllImages(message.imageUrl, message.imageTitle)
+        }
+    }
     
     // If main extension toggle changed
     if (wasEnabled !== isEnabled) {
@@ -235,7 +247,7 @@ chrome.runtime.onMessage.addListener((message) => {
         } else {
             // Only run animation when enabling the extension
             setGreyscale(true);
-            replaceAllImages('https://i.ytimg.com/vi/Mu3BfD6wmPg/hq720.jpg?sqp=-oaymwFBCNAFEJQDSFryq4qpAzMIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB8AEB-AH-CYAC0AWKAgwIABABGBEgYihyMA8=&rs=AOn4CLCY6KSCtCHAKGgbGjInahMAocVO8g', 'Test Title');
+            //replaceAllImages('https://i.ytimg.com/vi/Mu3BfD6wmPg/hq720.jpg?sqp=-oaymwFBCNAFEJQDSFryq4qpAzMIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB8AEB-AH-CYAC0AWKAgwIABABGBEgYihyMA8=&rs=AOn4CLCY6KSCtCHAKGgbGjInahMAocVO8g', 'Test Title');
 
             replaceThumbnails();
         }
@@ -245,22 +257,10 @@ chrome.runtime.onMessage.addListener((message) => {
         document.documentElement.style.filter = 'grayscale(100%)';
         replaceThumbnails();
     }
+
+
+
 });
-
-
-// chrome.runtime.onMessage.addListener((message) => {
-//     const wasReplace = replace;
-//     replace = message.replace
-//     if (wasReplace !== replace) {
-//         if (!replace) {
-//             //clearAllReplaces();
-    
-//         } else {
-//             replaceAllImages(message.imageUrl, message.imageTitle);
-//         }
-//     }
-
-// });
 
 
 
