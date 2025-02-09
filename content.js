@@ -1,10 +1,19 @@
 let isEnabled = false;
 let showThumbnails = false;
 let replace = false;
-let imageUrl = 'https://i.ytimg.com/vi/fFnMrFMli1Y/hq720.jpg?sqp=-oaymwEnCNAFEJQDSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLDHCVwmOTMi-ngc_MGU-oluZluWsg';
+let imageUrl = ''//'https://i.ytimg.com/vi/fFnMrFMli1Y/hq720.jpg?sqp=-oaymwEnCNAFEJQDSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLDHCVwmOTMi-ngc_MGU-oluZluWsg';
 let imageTitle = '';
 let apiKey = '';
 
+
+chrome.storage.local.get(['apiKey'], (result) => {
+    if (result.apiKey) {
+        apiKey = result.apiKey;  // Set apiKey to the stored value
+        console.log("API Key loaded:", apiKey);
+    } else {
+        console.log("No API Key found in storage");
+    }
+});
 
 const words = ['OBEY', 'CONSUME', 'CONFORM', 'SUBMIT', 'SLEEP'];
 const analysisCache = new Map();
@@ -70,7 +79,7 @@ function clearOverlays() {
 }
 
 function replaceAllImages(imageUrl, imageTitle) {
-    if (!imageUrl) return;
+    if (!imageUrl && !imageTitle) return;
 
     const thumbnails = document.querySelectorAll(`img[src*="ytimg.com/vi/"], img[src*="i.ytimg.com"]`);
 
@@ -99,11 +108,12 @@ function replaceAllImages(imageUrl, imageTitle) {
                 object-fit: cover;
                 z-index: 2;
             `;
-            thumbnail.style.visibility = 'hidden';
-
-            container.appendChild(newImage);
-
-            if (imageTitle && titleElement){
+            if (imageUrl){
+                thumbnail.style.visibility = 'hidden';
+                container.appendChild(newImage);
+            }
+            //NOTE: this needs to be fixed as it actually doesn't replace the correct <a> element properly
+            if (imageTitle){
                 titleElement.style.visibility = 'hidden';
                 const newTitle = document.createElement('div');
                 newTitle.className = 'custom-title';
@@ -184,7 +194,8 @@ function replaceThumbnails() {
 
         const titleElement = container.closest('ytd-rich-item-renderer')?.querySelector('#video-title');
         const rawTitle = titleElement?.textContent?.trim() || 'Untitled';
-
+        const cacheKey = rawTitle;
+        analysisCache
         if (!container.classList.contains('text-overlay-processed')) {
             container.classList.add('text-overlay-processed');
             container.style.position = 'relative';
@@ -249,7 +260,13 @@ function replaceThumbnails() {
     });
 }
 
-async function analyzeWithGroq(text) {
+
+async function analyzeWithGroq(text, cacheKey) {
+
+    if (analysisCache.has(cacheKey)) {
+        return analysisCache.get(cacheKey);
+    }
+
     if (!apiKey) {
         return "GROQ API key not provided";
         //throw new Error('GROQ API key not provided');
@@ -283,14 +300,114 @@ async function analyzeWithGroq(text) {
 
     const responseData = await response.json();
     const result = responseData.choices[0]?.message?.content;
+    
+    if (result) {
+        let parsed;
+        
+        try{
+            parsed = JSON.parse(result);
+            if (!parsed || typeof parsed !== 'object') {
+                throw new Error('Invalid response format');
+            }
+        } catch (error){
+            console.error('Invalid JSON response:', error);
+            console.log(result);
+            throw new Error('Invalid JSON response from API');
+        
+        }
+
+        analysisCache.set(text, parsed);
+        return parsed;
+    }
+
     console.log(result);
     return result;
 }
 
 
+async function replaceThumbnailsWithAnalysis() {
+    if (!isEnabled) return;
 
-console.log(apiKey);
-console.log(analyzeWithGroq("The Matrix - Official Trailer"));
+    const thumbnails = document.querySelectorAll(`
+        img[src*="ytimg.com/vi/"],
+        img[src*="i.ytimg.com"]
+    `);
+    
+    for (const thumbnail of thumbnails) {
+        const container = thumbnail.closest('ytd-thumbnail, ytd-reel-item-renderer');
+        if (!container) return;
+
+        const titleElement = container.closest('ytd-rich-item-renderer')?.querySelector('#video-title');
+        const rawTitle = titleElement?.textContent?.trim() || 'Untitled';
+        const cacheKey = rawTitle;
+        //analysisCache
+        if (!container.classList.contains('text-overlay-processed')) {
+            container.classList.add('text-overlay-processed');
+            container.style.position = 'relative';
+            
+            // Create white background when thumbnails are hidden
+            const whiteBackground = document.createElement('div');
+            whiteBackground.className = 'white-background';
+            whiteBackground.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: white;
+                z-index: 1;
+                display: ${showThumbnails ? 'none' : 'block'};
+            `;
+            
+            // Create text overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'overlay-text';
+            analysedsummary = await analyzeWithGroq(rawTitle, cacheKey)
+            try {
+                overlay.textContent = analysedsummary.summary;
+            } catch (error) {
+                overlay.textContent = analysedsummary
+            }
+            const isShorts = thumbnail.closest('ytd-reel-item-renderer') !== null;
+            
+            overlay.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: ${showThumbnails ? 'white' : 'black'};
+                font-size: ${isShorts ? '32px' : '48px'};
+                font-weight: bold;
+                font-family: Impact, sans-serif;
+                text-align: center;
+                pointer-events: none;
+                z-index: 2;
+                letter-spacing: 2px;
+                width: 90%;
+                word-wrap: break-word;
+                margin: 0;
+                padding: 0;
+                text-shadow: ${showThumbnails ? '2px 2px 4px rgba(0, 0, 0, 0.9)' : 'none'};
+                mix-blend-mode: ${showThumbnails ? 'overlay' : 'normal'};
+            `;
+            
+            container.appendChild(whiteBackground);
+            container.appendChild(overlay);
+        } else {
+            // Update existing elements when show thumbnails setting changes
+            const whiteBackground = container.querySelector('.white-background');
+            const overlay = container.querySelector('.overlay-text');
+            
+            if (whiteBackground && overlay) {
+                whiteBackground.style.display = showThumbnails ? 'none' : 'block';
+                overlay.style.color = showThumbnails ? 'white' : 'black';
+                overlay.style.textShadow = showThumbnails ? '2px 2px 4px rgba(0, 0, 0, 0.9)' : 'none';
+                overlay.style.mixBlendMode = showThumbnails ? 'overlay' : 'normal';
+            }
+        }
+    };
+}
+
 
 
 
@@ -348,7 +465,11 @@ chrome.runtime.onMessage.addListener((message) => {
             setGreyscale(true);
             //replaceAllImages('https://i.ytimg.com/vi/Mu3BfD6wmPg/hq720.jpg?sqp=-oaymwFBCNAFEJQDSFryq4qpAzMIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB8AEB-AH-CYAC0AWKAgwIABABGBEgYihyMA8=&rs=AOn4CLCY6KSCtCHAKGgbGjInahMAocVO8g', 'Test Title');
 
-            replaceThumbnails();
+            //replaceThumbnails();
+            replaceThumbnailsWithAnalysis();
+            console.log(apiKey);
+            console.log(analyzeWithGroq("The Matrix - Official Trailer"));
+
         }
     } 
     // If only the thumbnail setting changed, just update without animation
@@ -364,7 +485,7 @@ chrome.runtime.onMessage.addListener((message) => {
 
 
 // Load initial state
-chrome.storage.local.get(['enabled', 'showThumbnails','imageUrl','imageTitle', 'replace'], (result) => {
+chrome.storage.local.get(['enabled', 'showThumbnails','imageUrl','imageTitle', 'replace','apiKey'], (result) => {
     isEnabled = result.enabled || false;
     showThumbnails = result.showThumbnails || false;
     if (isEnabled) {

@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const imagePreview = document.getElementById('imagePreview'); // Add this line
   const replaceAllCheckbox = document.getElementById('replaceAll'); // Checkbox
   const apiKeyInput = document.getElementById('apiKey'); // API key input
-  //const analysisCache = new Map();
 
   // Load saved states
   chrome.storage.local.get(['enabled', 'showThumbnails', 'imageUrl', 'imageTitle', 'replace', 'apiKey'], (result) => {
@@ -16,6 +15,13 @@ document.addEventListener('DOMContentLoaded', () => {
     inputImageTitle.value = result.imageTitle || '';
     replaceAllCheckbox.checked = result.replace || false;
     apiKeyInput.value = result.apiKey || ''; // Load the API key
+    
+    // if (result.apiKey) {
+    //   chrome.storage.local.set({ apiKey }, () => {
+    //       console.log("API Key saved:", apiKey);
+    //       chrome.runtime.sendMessage({ type: "apiKeyUpdated", apiKey });
+    //   });
+    // }
 
     if (result.imageUrl) {
       imagePreview.src = result.imageUrl;
