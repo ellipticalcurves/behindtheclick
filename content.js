@@ -1,11 +1,13 @@
 let isEnabled = false;
 let showThumbnails = false;
 let replace = false;
-let imageUrl = 'https://i.ytimg.com/vi/DdV8dqw6ZzE/hqdefault.jpg?sqp=-oaymwFBCNACELwBSFryq4qpAzMIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB8AEB-AH-CYAC0AWKAgwIABABGEggZSg8MA8=&rs=AOn4CLB2xortox5sf8KPfQF3tZdoaMpNzQ';
+let imageUrl = 'https://i.ytimg.com/vi/fFnMrFMli1Y/hq720.jpg?sqp=-oaymwEnCNAFEJQDSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLDHCVwmOTMi-ngc_MGU-oluZluWsg';
 let imageTitle = '';
 let apiKey = '';
 
+
 const words = ['OBEY', 'CONSUME', 'CONFORM', 'SUBMIT', 'SLEEP'];
+const analysisCache = new Map();
 
 function getRandomWord() {
     return words[Math.floor(Math.random() * words.length)];
@@ -100,6 +102,38 @@ function replaceAllImages(imageUrl, imageTitle) {
             thumbnail.style.visibility = 'hidden';
 
             container.appendChild(newImage);
+
+            if (imageTitle && titleElement){
+                titleElement.style.visibility = 'hidden';
+                const newTitle = document.createElement('div');
+                newTitle.className = 'custom-title';
+                newTitle.textContent = imageTitle;
+                newTitle.style.cssText = `
+                    position: absolute;
+                    top: 100%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 100%;
+                    text-align: center;
+                    font-size: 1.6rem;
+                    line-height: 2.2rem;
+                    font-weight: 500;
+                    color: var(--yt-spec-text-primary);
+                    font-family: "Roboto", "Arial", sans-serif;
+                    background: transparent;
+                    padding: 4px;
+                    max-height: 4.4rem;
+                    overflow: hidden;
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                    text-overflow: ellipsis;
+                    white-space: normal;
+                    z-index: 2;
+                `;
+                container.appendChild(newTitle);
+
+            }
         }
     });
 }
@@ -119,6 +153,17 @@ function clearAllReplaces(){
         if (originalThumbnail) {
             originalThumbnail.style.visibility = 'visible';
         }
+        
+        const customTitle = container.querySelector('.custom-title');
+        if (customTitle) {
+            customTitle.remove();
+        }
+
+        // Restore original title visibility
+        const titleElement = container.closest('ytd-rich-item-renderer')?.querySelector('#video-title');
+        if (titleElement) {
+            titleElement.style.visibility = 'visible';
+        }
 
         // Remove the class so it can be replaced again later if needed
         container.classList.remove('image-replaced');
@@ -136,6 +181,9 @@ function replaceThumbnails() {
     thumbnails.forEach(thumbnail => {
         const container = thumbnail.closest('ytd-thumbnail, ytd-reel-item-renderer');
         if (!container) return;
+
+        const titleElement = container.closest('ytd-rich-item-renderer')?.querySelector('#video-title');
+        const rawTitle = titleElement?.textContent?.trim() || 'Untitled';
 
         if (!container.classList.contains('text-overlay-processed')) {
             container.classList.add('text-overlay-processed');
@@ -158,6 +206,7 @@ function replaceThumbnails() {
             // Create text overlay
             const overlay = document.createElement('div');
             overlay.className = 'overlay-text';
+            
             overlay.textContent = getRandomWord();
             
             const isShorts = thumbnail.closest('ytd-reel-item-renderer') !== null;
