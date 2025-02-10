@@ -6,13 +6,25 @@ let imageTitle = '';
 let apiKey = '';
 let analysisEnabled = false;
 let showAnalysis = false;
-chrome.storage.local.get(['apiKey'], (result) => {
-    if (result.apiKey) {
-        apiKey = result.apiKey;  // Set apiKey to the stored value
-        console.log("API Key loaded:", apiKey);
-    } else {
-        console.log("No API Key found in storage");
+chrome.storage.local.get(['apiKey', 'enabled', 'showThumbnails', 'imageUrl', 'imageTitle', 'replace', 'analysisEnabled', 'showAnalysis', 'analysisCache'], (result) => {
+    isEnabled = result.enabled || false;
+    showThumbnails = result.showThumbnails || false;
+    apiKey = result.apiKey || '';
+    showAnalysis = result.showAnalysis || false;
+    
+    // Restore cache from storage
+    if (result.analysisCache) {
+        analysisCache = new Map(JSON.parse(result.analysisCache));
+        console.log('Restored analysis cache:', analysisCache);
     }
+
+    if (isEnabled) {
+        setGreyscale(true);
+    }
+    if (showAnalysis) {
+        showAnalysisOverlays();
+    }
+    console.log("Initial API Key loaded:", apiKey);
 });
 
 const words = ['OBEY', 'CONSUME', 'CONFORM', 'SUBMIT', 'SLEEP'];
@@ -76,7 +88,7 @@ function clearOverlays() {
     document.querySelectorAll('.text-overlay-processed').forEach(el => {
         el.classList.remove('text-overlay-processed');
     });
-}
+    }
 
 function replaceAllImages(imageUrl, imageTitle) {
     if (!imageUrl && !imageTitle) return;
@@ -267,10 +279,12 @@ async function analyzeWithGroq(text, cacheKey) {
         return analysisCache.get(cacheKey);
     }
 
-    if (!apiKey) {
-        console.log('GROQ API key not provided');
+    // Add debug logging
+    console.log('Current API key:', apiKey);
+    
+    if (!apiKey || apiKey.trim() === '') {
+        console.log('GROQ API key not provided or empty');
         return getRandomWord();
-        //throw new Error('GROQ API key not provided');
     }
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -310,6 +324,16 @@ async function analyzeWithGroq(text, cacheKey) {
             if (!parsed || typeof parsed !== 'object') {
                 throw new Error('Invalid response format');
             }
+            
+            // Save to cache and persist
+            analysisCache.set(text, parsed);
+            // Convert Map to array for storage
+            const cacheArray = Array.from(analysisCache.entries());
+            chrome.storage.local.set({ 
+                analysisCache: JSON.stringify(cacheArray) 
+            });
+            
+            return parsed;
         } catch (error){
             console.error('Invalid JSON response:', error);
             console.log(result);
@@ -420,7 +444,9 @@ async function replaceThumbnailsWithAnalysis(analysisEnabled) {
     await Promise.all(updates);
 }
 
+function createAnalysisOverlay(){
 
+}
 
 
 // Debounce function to prevent too many calls
@@ -442,8 +468,71 @@ const debouncedReplace = debounce(replaceThumbnails, 250);
 const debouncedReplaceAll = debounce(() => replaceAllImages(imageUrl, imageTitle), 250);
 
 
+function showAnalysisOverlays() {
+    if (!showAnalysis || !isEnabled) return;
+    
+    const thumbnails = document.querySelectorAll(
+        'ytd-thumbnail, ytd-reel-item-renderer, ytd-rich-grid-media'
+    );
 
+    thumbnails.forEach(container => {
+        const titleElement = container.closest('ytd-rich-item-renderer')?.querySelector('#video-title') || 
+                            container.closest('ytd-compact-video-renderer')?.querySelector('#video-title');
+        const rawTitle = titleElement?.textContent?.trim() || 'Untitled';
 
+        if (analysisCache.has(rawTitle) && !container.querySelector('.analysis-overlay')) {
+            const analysis = analysisCache.get(rawTitle);
+            
+            // Create overlay container
+            const overlay = document.createElement('div');
+            overlay.className = 'analysis-overlay';
+            overlay.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.95);
+                color: white;
+                padding: 12px;
+                font-size: 13px;
+                z-index: 1000;
+                display: flex;
+                flex-direction: column;
+                overflow-y: auto;
+                overscroll-behavior: contain;
+            `;
+
+            // Create summary section
+            const summaryDiv = document.createElement('div');
+            summaryDiv.style.cssText = 'font-size: 1.2em; color: #ff4444; margin-bottom: 8px;';
+            summaryDiv.textContent = analysis.summary;
+            overlay.appendChild(summaryDiv);
+
+            // Create analysis section
+            const analysisDiv = document.createElement('div');
+            analysisDiv.style.cssText = 'flex-grow: 1; margin-bottom: 12px;';
+            analysisDiv.textContent = analysis.analysis;
+            overlay.appendChild(analysisDiv);
+
+            // Create impact section
+            const impactDiv = document.createElement('div');
+            impactDiv.style.cssText = 'border-top: 1px solid #444; padding-top: 8px; color: #888;';
+            impactDiv.textContent = analysis.impact;
+            overlay.appendChild(impactDiv);
+
+            // Add to container
+            container.style.position = 'relative';
+            container.appendChild(overlay);
+        }
+    });
+}
+
+function hideAnalysisOverlays() {
+    document.querySelectorAll('.analysis-overlay').forEach(overlay => {
+        overlay.remove();
+    });
+}
 
 
 // Listen for messages from popup
@@ -462,13 +551,13 @@ chrome.runtime.onMessage.addListener((message) => {
     //first I make the thumbnails replaced if the replace button changed
 
     if (wasShowAnalysis !== showAnalysis) {
-        if (!showAnalysis){
-            console.log("button working showAnalysis off") ;
+        if (showAnalysis) {
+            console.log("Showing analysis overlays");
+            showAnalysisOverlays();
         } else {
-            console.log("button working showAnalysis on") ;
+            console.log("Hiding analysis overlays");
+            hideAnalysisOverlays();
         }
-
-        //console.log(analysisCache)
     }
 
     if (wasReplace !== replace) {
@@ -522,8 +611,19 @@ chrome.storage.local.get(['enabled', 'showThumbnails','imageUrl','imageTitle', '
     result.imageTitle || '';
 });
 
+// Add a storage change listener
+chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local' && changes.apiKey) {
+        apiKey = changes.apiKey.newValue;
+        console.log('API key updated:', apiKey);
+    }
+});
 
-
+// Add cache cleanup function
+function clearAnalysisCache() {
+    analysisCache.clear();
+    chrome.storage.local.remove('analysisCache');
+}
 
 // Add scroll event listener
 window.addEventListener('scroll',() => {
@@ -531,6 +631,10 @@ window.addEventListener('scroll',() => {
         debouncedReplaceAll();
     }
     debouncedReplace();
+    if (showAnalysis) {
+        // Debounce the analysis overlay updates
+        debounce(showAnalysisOverlays, 250)();
+    }
 });
 
 
@@ -544,6 +648,9 @@ const observer = new MutationObserver((mutations) => {
     
     if (hasNewNodes && isEnabled) {
         debouncedReplace();
+        if (showAnalysis) {
+            debounce(showAnalysisOverlays, 250)();
+        }
     }
 });
 

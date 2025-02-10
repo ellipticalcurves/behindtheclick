@@ -105,9 +105,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
   
+  // Update the API key input handler
   apiKeyInput.addEventListener('input', () => {
-    const apiKey = apiKeyInput.value;
-    chrome.storage.local.set({ apiKey });
+    const apiKey = apiKeyInput.value.trim();
+    chrome.storage.local.set({ apiKey }, () => {
+        console.log('API key saved');
+        // Notify content script
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0]) {
+                chrome.tabs.sendMessage(tabs[0].id, { 
+                    type: 'apiKeyUpdate',
+                    apiKey 
+                });
+            }
+        });
+    });
   });
   
   toggleanalysisEnabled.addEventListener('change', () => {
