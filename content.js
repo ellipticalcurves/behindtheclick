@@ -4,8 +4,8 @@ let replace = false;
 let imageUrl = ''//'https://i.ytimg.com/vi/fFnMrFMli1Y/hq720.jpg?sqp=-oaymwEnCNAFEJQDSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLDHCVwmOTMi-ngc_MGU-oluZluWsg';
 let imageTitle = '';
 let apiKey = '';
-
-
+let analysisEnabled = false;
+let showAnalysis = false;
 chrome.storage.local.get(['apiKey'], (result) => {
     if (result.apiKey) {
         apiKey = result.apiKey;  // Set apiKey to the stored value
@@ -326,7 +326,7 @@ async function analyzeWithGroq(text, cacheKey) {
 }
 
 
-async function replaceThumbnailsWithAnalysis() {
+async function replaceThumbnailsWithAnalysis(analysisEnabled) {
     if (!isEnabled) return;
 
     const thumbnails = Array.from(document.querySelectorAll(`
@@ -343,6 +343,7 @@ async function replaceThumbnailsWithAnalysis() {
 
         const titleElement = container.closest('ytd-rich-item-renderer')?.querySelector('#video-title');
         const rawTitle = titleElement?.textContent?.trim() || 'Untitled';
+        const cacheKey = rawTitle;
 
         // Mark as processed and set up container
         container.classList.add('text-overlay-processed');
@@ -365,8 +366,13 @@ async function replaceThumbnailsWithAnalysis() {
         // Create and append overlay with loading state
         const overlay = document.createElement('div');
         overlay.className = 'overlay-text';
-        overlay.textContent = 'ANALYZING...';
-        
+
+        if (analysisCache.has(cacheKey)) {
+            const cached = analysisCache.get(cacheKey);
+            overlay.textContent = cached.summary || getRandomWord();
+        } else {
+            overlay.textContent = analysisEnabled ? 'ANALYZING...' : getRandomWord();
+        }
         const isShorts = thumbnail.closest('ytd-reel-item-renderer') !== null;
         overlay.style.cssText = `
             position: absolute;
@@ -393,18 +399,21 @@ async function replaceThumbnailsWithAnalysis() {
         container.appendChild(overlay);
 
         // Return promise for API call and DOM update
-        return analyzeWithGroq(rawTitle, rawTitle)
-            .then(analysis => {
-                if (analysis && typeof analysis === 'object') {
-                    overlay.textContent = analysis.summary;
-                } else {
-                    overlay.textContent = typeof analysis === 'string' ? analysis : 'ERROR';
-                }
-            })
-            .catch(error => {
-                console.error('Analysis failed:', error);
-                overlay.textContent = getRandomWord()//'SYSTEM ERROR';
-            });
+        if (analysisEnabled) {
+            return analyzeWithGroq(rawTitle, rawTitle)
+                .then(analysis => {
+                    if (analysis && typeof analysis === 'object') {
+                        overlay.textContent = analysis.summary;
+                    } else {
+                        overlay.textContent = typeof analysis === 'string' ? analysis : 'ERROR';
+                    }
+                })
+                .catch(error => {
+                    console.error('Analysis failed:', error);
+                    overlay.textContent = getRandomWord()//'SYSTEM ERROR';
+                });
+            }
+
     });
 
     // Wait for all updates to complete
@@ -442,12 +451,26 @@ chrome.runtime.onMessage.addListener((message) => {
     const wasEnabled = isEnabled;
     const wasShowingThumbnails = showThumbnails;
     const wasReplace = replace;
+    const wasShowAnalysis = showAnalysis;
     //console.log(replace);
     //console.log(message.replace);
     isEnabled = message.enabled;
     showThumbnails = message.showThumbnails;
     replace = message.replace;
+    analysisEnabled = message.analysisEnabled;
+    showAnalysis = message.showAnalysis;
     //first I make the thumbnails replaced if the replace button changed
+
+    if (wasShowAnalysis !== showAnalysis) {
+        if (!showAnalysis){
+            console.log("button working showAnalysis off") ;
+        } else {
+            console.log("button working showAnalysis on") ;
+        }
+
+        //console.log(analysisCache)
+    }
+
     if (wasReplace !== replace) {
         if (!replace) {
             clearAllReplaces();
@@ -467,14 +490,14 @@ chrome.runtime.onMessage.addListener((message) => {
             // Only run animation when enabling the extension
             setGreyscale(true);
             //replaceAllImages('https://i.ytimg.com/vi/Mu3BfD6wmPg/hq720.jpg?sqp=-oaymwFBCNAFEJQDSFryq4qpAzMIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB8AEB-AH-CYAC0AWKAgwIABABGBEgYihyMA8=&rs=AOn4CLCY6KSCtCHAKGgbGjInahMAocVO8g', 'Test Title');
-
-            //replaceThumbnails();
-            replaceThumbnailsWithAnalysis();
-            console.log(apiKey);
-            console.log(analyzeWithGroq("The Matrix - Official Trailer"));
-
+            replaceThumbnailsWithAnalysis(analysisEnabled);
         }
-    } 
+
+            //console.log(apiKey);
+            //console.log(analyzeWithGroq("The Matrix - Official Trailer"));
+            console.log(analysisCache)
+
+        } 
     // If only the thumbnail setting changed, just update without animation
     else if (wasShowingThumbnails !== showThumbnails && isEnabled) {
         document.documentElement.style.filter = 'grayscale(100%)';
