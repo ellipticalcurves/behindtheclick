@@ -6,6 +6,7 @@ let imageTitle = '';
 let apiKey = '';
 let analysisEnabled = false;
 let showAnalysis = false;
+const MAX_CACHE_SIZE = 100; // Maximum number of entries to store
 chrome.storage.local.get(['apiKey', 'enabled', 'showThumbnails', 'imageUrl', 'imageTitle', 'replace', 'analysisEnabled', 'showAnalysis', 'analysisCache'], (result) => {
     isEnabled = result.enabled || false;
     showThumbnails = result.showThumbnails || false;
@@ -24,7 +25,7 @@ chrome.storage.local.get(['apiKey', 'enabled', 'showThumbnails', 'imageUrl', 'im
     if (showAnalysis) {
         showAnalysisOverlays();
     }
-    console.log("Initial API Key loaded:", apiKey);
+    //console.log("Initial API Key loaded:", apiKey);
 });
 
 const words = ['OBEY', 'CONSUME', 'CONFORM', 'SUBMIT', 'SLEEP'];
@@ -272,6 +273,20 @@ function replaceThumbnails() {
     });
 }
 
+function trimCache() {
+    if (analysisCache.size > MAX_CACHE_SIZE) {
+        // Convert to array, sort by timestamp, and keep only the most recent entries
+        const entries = Array.from(analysisCache.entries());
+        const trimmed = entries.slice(-MAX_CACHE_SIZE);
+        analysisCache = new Map(trimmed);
+        
+        // Update storage with trimmed cache
+        chrome.storage.local.set({ 
+            analysisCache: JSON.stringify(trimmed) 
+        });
+        console.log(`Cache trimmed to ${analysisCache.size} entries`);
+    }
+}
 
 async function analyzeWithGroq(text, cacheKey) {
 
@@ -280,7 +295,7 @@ async function analyzeWithGroq(text, cacheKey) {
     }
 
     // Add debug logging
-    console.log('Current API key:', apiKey);
+    //console.log('Current API key:', apiKey);
     
     if (!apiKey || apiKey.trim() === '') {
         console.log('GROQ API key not provided or empty');
@@ -327,6 +342,7 @@ async function analyzeWithGroq(text, cacheKey) {
             
             // Save to cache and persist
             analysisCache.set(text, parsed);
+            trimCache(); // Add cache size check
             // Convert Map to array for storage
             const cacheArray = Array.from(analysisCache.entries());
             chrome.storage.local.set({ 
@@ -444,11 +460,6 @@ async function replaceThumbnailsWithAnalysis(analysisEnabled) {
     await Promise.all(updates);
 }
 
-function createAnalysisOverlay(){
-
-}
-
-
 // Debounce function to prevent too many calls
 function debounce(func, wait) {
     let timeout;
@@ -563,6 +574,7 @@ chrome.runtime.onMessage.addListener((message) => {
     if (wasReplace !== replace) {
         if (!replace) {
             clearAllReplaces();
+            console.log(analysisCache.size);
         } else {
             replaceAllImages(message.imageUrl, message.imageTitle)
         }
@@ -615,7 +627,7 @@ chrome.storage.local.get(['enabled', 'showThumbnails','imageUrl','imageTitle', '
 chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'local' && changes.apiKey) {
         apiKey = changes.apiKey.newValue;
-        console.log('API key updated:', apiKey);
+        //console.log('API key updated:', apiKey);
     }
 });
 
