@@ -268,7 +268,8 @@ async function analyzeWithGroq(text, cacheKey) {
     }
 
     if (!apiKey) {
-        return "GROQ API key not provided";
+        console.log('GROQ API key not provided');
+        return getRandomWord();
         //throw new Error('GROQ API key not provided');
     }
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -402,7 +403,7 @@ async function replaceThumbnailsWithAnalysis() {
             })
             .catch(error => {
                 console.error('Analysis failed:', error);
-                overlay.textContent = 'SYSTEM ERROR';
+                overlay.textContent = getRandomWord()//'SYSTEM ERROR';
             });
     });
 
