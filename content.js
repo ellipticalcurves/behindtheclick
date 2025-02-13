@@ -152,7 +152,7 @@ function replaceAllImages(imageUrl, imageTitle) {
                     -webkit-box-orient: vertical;
                     text-overflow: ellipsis;
                     white-space: normal;
-                    z-index: 2;
+                    z-index: 99999;
                 `;
                 container.appendChild(newTitle);
 
