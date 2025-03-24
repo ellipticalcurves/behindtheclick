@@ -308,7 +308,7 @@ async function analyzeWithGroq(text, cacheKey) {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            model: 'mixtral-8x7b-32768',
+            model: 'gemma2-9b-it',
             messages: [{
                 role: "user",
                 content: `Analyze this YouTube video title from an ideological perspective: "${text}"
@@ -329,6 +329,7 @@ async function analyzeWithGroq(text, cacheKey) {
     });
 
     const responseData = await response.json();
+    //console.log(responseData);
     const result = responseData.choices[0]?.message?.content;
     
     if (result) {
@@ -382,6 +383,7 @@ async function replaceThumbnailsWithAnalysis(analysisEnabled) {
         }
 
         const titleElement = container.closest('ytd-rich-item-renderer')?.querySelector('#video-title');
+        console.log(titleElement?.textContent?.trim())
         const rawTitle = titleElement?.textContent?.trim() || 'Untitled';
         const cacheKey = rawTitle;
 
@@ -590,6 +592,17 @@ chrome.runtime.onMessage.addListener((message) => {
         } else {
             // Only run animation when enabling the extension
             setGreyscale(true);
+            console.log('working');
+            const thumbnails = document.querySelectorAll(`img[src*="ytimg.com/vi/"], img[src*="i.ytimg.com"]`);
+
+            thumbnails.forEach(thumbnail => {
+                const container = thumbnail.closest('ytd-thumbnail, ytd-reel-item-renderer');
+                const titleElement = container.closest('ytd-rich-item-renderer, ytd-compact-video-renderer')
+                    ?.querySelector('#video-title, .ytd-compact-video-renderer');
+                const rawTitle = titleElement.textContent?.trim();
+                console.log('Found title:', rawTitle);
+                // Rest of the function...
+            });
             //replaceAllImages('https://i.ytimg.com/vi/Mu3BfD6wmPg/hq720.jpg?sqp=-oaymwFBCNAFEJQDSFryq4qpAzMIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB8AEB-AH-CYAC0AWKAgwIABABGBEgYihyMA8=&rs=AOn4CLCY6KSCtCHAKGgbGjInahMAocVO8g', 'Test Title');
             replaceThumbnailsWithAnalysis(analysisEnabled);
         }
